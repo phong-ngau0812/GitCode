@@ -1,0 +1,152 @@
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Web;
+
+namespace UploadFile29.App_Start
+{
+    public class dbconnect
+    {
+        public static string source;
+        public static SqlConnection con = new SqlConnection();
+        public static string IMGpath = "images/";
+        static dbconnect()
+        {
+
+            source = @"server=192.168.128.1;Initial Catalog=EDISystem;Persist Security Info=True;User ID=develop;Password=Admin@123";
+         
+
+
+            con = new SqlConnection(source);
+            if (con.State == ConnectionState.Open)
+            {
+                con.Open();
+            }
+            else if (con.State == ConnectionState.Closed)
+            {
+                con.Close();
+            }
+        }
+        public static void open()
+        {
+            try
+            {
+                con.Open();
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+            finally
+            {
+                con.Dispose();
+            }
+        }
+        public static DataTable DataTable_Sql(string sql)
+        {
+            //try
+            //{
+            using (SqlConnection conn = new SqlConnection(source))
+            {
+                using (SqlDataAdapter dap = new SqlDataAdapter(sql, conn))
+                {
+                    using (DataSet ds = new DataSet())
+                    {
+                        dap.Fill(ds);
+                        conn.Close();
+                        conn.Dispose();
+                        return ds.Tables[0];
+                    }
+                }
+            }
+            //}
+            //catch (Exception ex)
+            //{
+            //    throw new Exception(ex.Message);
+            //}
+        }
+
+        public static int Execute_NonSQL(string sql)
+        {
+            //SqlConnection conn = new SqlConnection(source);
+            //SqlCommand cmd = new SqlCommand(sql, conn);
+            //int row = 0;
+            //conn.Open();
+            //cmd.CommandType = CommandType.Text;
+            //cmd.CommandText = sql;
+            //row = cmd.ExecuteNonQuery();
+            //conn.Dispose();
+            //conn.Close();
+            //return row;
+            SqlTransaction sqltran = null;
+
+            SqlConnection conn = new SqlConnection(source);
+
+            int row = 0;
+            conn.Open();
+            sqltran = conn.BeginTransaction();
+            SqlCommand cmd = new SqlCommand(sql, conn, sqltran);
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandText = sql;
+            row = cmd.ExecuteNonQuery();
+            try
+            {
+                sqltran.Commit();
+                conn.Dispose();
+                conn.Close();
+                return row;
+            }
+            catch (SqlException ex)
+            {
+                // throw new Exception(ex.Message);
+                sqltran.Rollback();
+                conn.Dispose();
+                conn.Close();
+                var _ex = new Exception(ex.Message + "Chỗ này sai rồi... : '" + sql + "'");
+                throw _ex;
+            }
+        }
+        public static DataTable StoreFillDS(string StoreName, CommandType type, params object[] obj)
+        {
+            SqlConnection conn = new SqlConnection(source);
+            conn.Open();
+            SqlCommand cmd = new SqlCommand(StoreName, conn);
+            cmd.CommandType = type;
+            SqlCommandBuilder.DeriveParameters(cmd);
+
+            for (int i = 1; i <= obj.Length; i++)
+            {
+                cmd.Parameters[i].Value = obj[i - 1];
+            }
+            SqlDataAdapter dap = new SqlDataAdapter(cmd);
+            DataSet ds = new DataSet();
+            dap.Fill(ds);
+            conn.Dispose();
+            conn.Close();
+            return ds.Tables[0];
+
+        }
+
+        public static int ExecuteStore(string query_object, CommandType type, params object[] obj)
+        {
+            int row = 0;
+            SqlConnection conn = new SqlConnection(source);
+            conn.Open();
+            SqlCommand cmd = new SqlCommand(query_object, conn);
+            cmd.CommandType = type;
+            SqlCommandBuilder.DeriveParameters(cmd);
+            for (int i = 1; i <= obj.Length; i++)
+            {
+                cmd.Parameters[i].Value = obj[i - 1];
+            }
+            cmd.ExecuteNonQuery();
+            conn.Dispose();
+            conn.Close();
+            return row;
+        }
+    }
+   
+}
